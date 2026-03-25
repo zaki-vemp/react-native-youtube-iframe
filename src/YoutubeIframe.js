@@ -45,6 +45,7 @@ const YoutubeIframe = (props, ref) => {
     onFullScreenChange = _status => {},
     onPlaybackQualityChange = _quality => {},
     onPlaybackRateChange = _playbackRate => {},
+    onWebViewLog,
   } = props;
 
   const [playerReady, setPlayerReady] = useState(false);
@@ -207,6 +208,11 @@ const YoutubeIframe = (props, ref) => {
           case 'playbackRateChange':
             onPlaybackRateChange(message.data);
             break;
+          case 'webViewLog':
+            if (onWebViewLog) {
+              onWebViewLog(message.data);
+            }
+            break;
           default:
             eventEmitter.current.emit(message.eventType, message.data);
             break;
@@ -222,6 +228,7 @@ const YoutubeIframe = (props, ref) => {
       onFullScreenChange,
       onPlaybackRateChange,
       onPlaybackQualityChange,
+      onWebViewLog,
     ],
   );
 

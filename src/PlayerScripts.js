@@ -181,6 +181,26 @@ export const MAIN_SCRIPT = (
     </div>
 
     <script>
+      (function() {
+        var levels = ['log', 'warn', 'error'];
+        levels.forEach(function(level) {
+          var orig = console[level].bind(console);
+          console[level] = function() {
+            var args = Array.prototype.slice.call(arguments);
+            var message = args.map(function(a) {
+              try { return typeof a === 'object' ? JSON.stringify(a) : String(a); }
+              catch(e) { return String(a); }
+            }).join(' ');
+            try {
+              window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'webViewLog', data: {level: level, message: message}}));
+            } catch(e) {}
+            orig.apply(console, args);
+          };
+        });
+      })();
+    </script>
+
+    <script>
       var tag = document.createElement('script');
 
       tag.src = "https://www.youtube.com/iframe_api";
