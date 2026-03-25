@@ -46,9 +46,12 @@ const YoutubeIframe = (props, ref) => {
     onPlaybackQualityChange = _quality => {},
     onPlaybackRateChange = _playbackRate => {},
     onWebViewLog,
+    onPlayerAction,
   } = props;
 
   const [playerReady, setPlayerReady] = useState(false);
+  const playerReadyRef = useRef(false);
+  const initialCommandsSentRef = useRef(false);
   const lastVideoIdRef = useRef(videoId);
   const lastPlayListRef = useRef(playList);
   const initialPlayerParamsRef = useRef(initialPlayerParams || {});
@@ -58,7 +61,7 @@ const YoutubeIframe = (props, ref) => {
 
   const sendPostMessage = useCallback(
     (eventName, meta) => {
-      if (!playerReady) {
+      if (!playerReadyRef.current) {
         return;
       }
 
@@ -68,7 +71,7 @@ const YoutubeIframe = (props, ref) => {
       }
       webViewRef.current.postMessage(message);
     },
-    [playerReady, onWebViewLog],
+    [onWebViewLog],
   );
 
   useImperativeHandle(
@@ -128,6 +131,25 @@ const YoutubeIframe = (props, ref) => {
     }),
     [],
   );
+
+  // Send initial commands when player becomes ready (only once)
+  useEffect(() => {
+    if (!playerReady || initialCommandsSentRef.current) {
+      return;
+    }
+
+    initialCommandsSentRef.current = true;
+
+    // Send initial state commands
+    if (play) {
+      sendPostMessage('playVideo', {});
+    }
+    if (!mute) {
+      sendPostMessage('unMuteVideo', {});
+    }
+    sendPostMessage('setVolume', {volume});
+    sendPostMessage('setPlaybackRate', {playbackRate});
+  }, [playerReady]); // Only run once when playerReady changes
 
   useEffect(() => {
     if (play) {
@@ -194,6 +216,14 @@ const YoutubeIframe = (props, ref) => {
           onWebViewLog(`[rn-youtube-iframe] Received message: ${JSON.stringify(message)}`);
         }
 
+        // Log all events to parent if callback provided
+        if (onPlayerAction) {
+          onPlayerAction({
+            type: message.eventType,
+            data: message.data,
+          });
+        }
+
         switch (message.eventType) {
           case 'fullScreenChange':
             onFullScreenChange(message.data);
@@ -203,7 +233,10 @@ const YoutubeIframe = (props, ref) => {
             break;
           case 'playerReady':
             onReady();
-            setPlayerReady(true);
+            if (!playerReadyRef.current) {
+              playerReadyRef.current = true;
+              setPlayerReady(true);
+            }
             break;
           case 'playerQualityChange':
             onPlaybackQualityChange(message.data);
@@ -235,6 +268,7 @@ const YoutubeIframe = (props, ref) => {
       onPlaybackRateChange,
       onPlaybackQualityChange,
       onWebViewLog,
+      onPlayerAction,
     ],
   );
 
