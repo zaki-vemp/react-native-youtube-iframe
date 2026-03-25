@@ -63,9 +63,12 @@ const YoutubeIframe = (props, ref) => {
       }
 
       const message = JSON.stringify({eventName, meta});
+      if (onWebViewLog) {
+        onWebViewLog(`[rn-youtube-iframe] Sending message: ${message}`);
+      }
       webViewRef.current.postMessage(message);
     },
-    [playerReady],
+    [playerReady, onWebViewLog],
   );
 
   useImperativeHandle(
@@ -187,6 +190,9 @@ const YoutubeIframe = (props, ref) => {
     event => {
       try {
         const message = JSON.parse(event.nativeEvent.data);
+        if (onWebViewLog && message.eventType !== 'webViewLog') {
+          onWebViewLog(`[rn-youtube-iframe] Received message: ${JSON.stringify(message)}`);
+        }
 
         switch (message.eventType) {
           case 'fullScreenChange':

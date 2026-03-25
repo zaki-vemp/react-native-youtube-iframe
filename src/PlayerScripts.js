@@ -243,29 +243,35 @@ export const MAIN_SCRIPT = (
       }
 
       function onPlayerError(event) {
+        console.log('[rn-youtube-iframe] [WebView] playerError:', event.data);
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerError', data: event.data}))
       }
 
       function onPlaybackRateChange(event) {
+        console.log('[rn-youtube-iframe] [WebView] playbackRateChange:', event.data);
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playbackRateChange', data: event.data}))
       }
 
       function onPlaybackQualityChange(event) {
+        console.log('[rn-youtube-iframe] [WebView] playerQualityChange:', event.data);
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerQualityChange', data: event.data}))
       }
 
       function onPlayerReady(event) {
+        console.log('[rn-youtube-iframe] [WebView] playerReady');
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerReady'}))
       }
 
       var done = false;
       function onPlayerStateChange(event) {
+        console.log('[rn-youtube-iframe] [WebView] playerStateChange:', event.data);
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerStateChange', data: event.data}))
       }
 
       var isFullScreen = false;
       function onFullScreenChange() {
         isFullScreen = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+        console.log('[rn-youtube-iframe] [WebView] fullScreenChange:', Boolean(isFullScreen));
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'fullScreenChange', data: Boolean(isFullScreen)}));
       }
 
@@ -279,6 +285,7 @@ export const MAIN_SCRIPT = (
 
         try {
           const parsedData = JSON.parse(data);
+          console.log('[rn-youtube-iframe] [WebView] received command:', parsedData.eventName);
 
           switch (parsedData.eventName) {
             case 'playVideo':
@@ -298,7 +305,7 @@ export const MAIN_SCRIPT = (
               break;
           }
         } catch (error) {
-          console.error('Error parsing data', event, error);
+          console.error('[rn-youtube-iframe] [WebView] Error parsing data', event, error);
         }
       });
     </script>
