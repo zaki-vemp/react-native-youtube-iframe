@@ -248,8 +248,10 @@ const YoutubeIframe = (props, ref) => {
             onPlaybackRateChange(message.data);
             break;
           case 'webViewLog':
+            // WebView console logs - forward to both callbacks
             if (onWebViewLog) {
-              onWebViewLog(message.data);
+              const logPrefix = message.data?.level ? `[WebView:${message.data.level}] ` : '[WebView] ';
+              onWebViewLog(logPrefix + (message.data?.message || message.data));
             }
             break;
           default:
