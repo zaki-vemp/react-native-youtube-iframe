@@ -48,6 +48,13 @@ export interface InitialPlayerParams {
   rel?: boolean;
 }
 
+export interface WebViewLog {
+  /** The console level that produced this log entry. */
+  level: 'log' | 'warn' | 'error';
+  /** The message string produced by the WebView console call. */
+  message: string;
+}
+
 export interface YoutubeIframeProps {
   /**
    * height of the webview container
@@ -139,6 +146,14 @@ export interface YoutubeIframeProps {
    * callback for when the video playback rate changes.
    */
   onPlaybackRateChange?: (event: string) => void;
+  /**
+   * callback for receiving console log messages emitted from the YouTube
+   * player WebView. Useful for debugging player behaviour such as unexpected
+   * pauses, errors, or other events logged by the player or the iframe API.
+   * Each call receives a `WebViewLog` object with a `level` ('log' | 'warn' | 'error')
+   * and a `message` string.
+   */
+  onWebViewLog?: (log: WebViewLog) => void;
   /**
    * Flag to decide whether or not a user can zoom the video webview.
    */

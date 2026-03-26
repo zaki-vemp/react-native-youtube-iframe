@@ -181,6 +181,26 @@ export const MAIN_SCRIPT = (
     </div>
 
     <script>
+      (function() {
+        var levels = ['log', 'warn', 'error'];
+        levels.forEach(function(level) {
+          var orig = console[level].bind(console);
+          console[level] = function() {
+            var args = Array.prototype.slice.call(arguments);
+            var message = args.map(function(a) {
+              try { return typeof a === 'object' ? JSON.stringify(a) : String(a); }
+              catch(e) { return String(a); }
+            }).join(' ');
+            try {
+              window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'webViewLog', data: {level: level, message: message}}));
+            } catch(e) {}
+            orig.apply(console, args);
+          };
+        });
+      })();
+    </script>
+
+    <script>
       var tag = document.createElement('script');
 
       tag.src = "https://www.youtube.com/iframe_api";
@@ -223,29 +243,35 @@ export const MAIN_SCRIPT = (
       }
 
       function onPlayerError(event) {
+        console.log('[rn-youtube-iframe] [WebView] playerError:', event.data);
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerError', data: event.data}))
       }
 
       function onPlaybackRateChange(event) {
+        console.log('[rn-youtube-iframe] [WebView] playbackRateChange:', event.data);
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playbackRateChange', data: event.data}))
       }
 
       function onPlaybackQualityChange(event) {
+        console.log('[rn-youtube-iframe] [WebView] playerQualityChange:', event.data);
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerQualityChange', data: event.data}))
       }
 
       function onPlayerReady(event) {
+        console.log('[rn-youtube-iframe] [WebView] playerReady');
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerReady'}))
       }
 
       var done = false;
       function onPlayerStateChange(event) {
+        console.log('[rn-youtube-iframe] [WebView] playerStateChange:', event.data);
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerStateChange', data: event.data}))
       }
 
       var isFullScreen = false;
       function onFullScreenChange() {
         isFullScreen = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+        console.log('[rn-youtube-iframe] [WebView] fullScreenChange:', Boolean(isFullScreen));
         window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'fullScreenChange', data: Boolean(isFullScreen)}));
       }
 
@@ -259,6 +285,7 @@ export const MAIN_SCRIPT = (
 
         try {
           const parsedData = JSON.parse(data);
+          console.log('[rn-youtube-iframe] [WebView] received command:', parsedData.eventName);
 
           switch (parsedData.eventName) {
             case 'playVideo':
@@ -276,9 +303,17 @@ export const MAIN_SCRIPT = (
             case 'unMuteVideo':
               player.unMute();
               break;
+
+            case 'setVolume':
+              player.setVolume(parsedData.meta.volume);
+              break;
+
+            case 'setPlaybackRate':
+              player.setPlaybackRate(parsedData.meta.playbackRate);
+              break;
           }
         } catch (error) {
-          console.error('Error parsing data', event, error);
+          console.error('[rn-youtube-iframe] [WebView] Error parsing data', event, error);
         }
       });
     </script>

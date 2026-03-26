@@ -45,9 +45,13 @@ const YoutubeIframe = (props, ref) => {
     onFullScreenChange = _status => {},
     onPlaybackQualityChange = _quality => {},
     onPlaybackRateChange = _playbackRate => {},
+    onWebViewLog,
+    onPlayerAction,
   } = props;
 
   const [playerReady, setPlayerReady] = useState(false);
+  const playerReadyRef = useRef(false);
+  const initialCommandsSentRef = useRef(false);
   const lastVideoIdRef = useRef(videoId);
   const lastPlayListRef = useRef(playList);
   const initialPlayerParamsRef = useRef(initialPlayerParams || {});
@@ -55,16 +59,41 @@ const YoutubeIframe = (props, ref) => {
   const webViewRef = useRef(null);
   const eventEmitter = useRef(new EventEmitter());
 
+  // Store callback props in refs so sendPostMessage/onWebMessage don't get
+  // new identities when the caller passes inline functions.
+  const onWebViewLogRef = useRef(onWebViewLog);
+  const onPlayerActionRef = useRef(onPlayerAction);
+  const onReadyRef = useRef(onReady);
+  const onErrorRef = useRef(onError);
+  const onChangeStateRef = useRef(onChangeState);
+  const onFullScreenChangeRef = useRef(onFullScreenChange);
+  const onPlaybackRateChangeRef = useRef(onPlaybackRateChange);
+  const onPlaybackQualityChangeRef = useRef(onPlaybackQualityChange);
+
+  useEffect(() => {
+    onWebViewLogRef.current = onWebViewLog;
+    onPlayerActionRef.current = onPlayerAction;
+    onReadyRef.current = onReady;
+    onErrorRef.current = onError;
+    onChangeStateRef.current = onChangeState;
+    onFullScreenChangeRef.current = onFullScreenChange;
+    onPlaybackRateChangeRef.current = onPlaybackRateChange;
+    onPlaybackQualityChangeRef.current = onPlaybackQualityChange;
+  });
+
   const sendPostMessage = useCallback(
     (eventName, meta) => {
-      if (!playerReady) {
+      if (!playerReadyRef.current) {
         return;
       }
 
       const message = JSON.stringify({eventName, meta});
+      if (onWebViewLogRef.current) {
+        onWebViewLogRef.current(`[rn-youtube-iframe] Sending message: ${message}`);
+      }
       webViewRef.current.postMessage(message);
     },
-    [playerReady],
+    [],
   );
 
   useImperativeHandle(
@@ -124,6 +153,25 @@ const YoutubeIframe = (props, ref) => {
     }),
     [],
   );
+
+  // Send initial commands when player becomes ready (only once)
+  useEffect(() => {
+    if (!playerReady || initialCommandsSentRef.current) {
+      return;
+    }
+
+    initialCommandsSentRef.current = true;
+
+    // Send initial state commands
+    if (play) {
+      sendPostMessage('playVideo', {});
+    }
+    if (!mute) {
+      sendPostMessage('unMuteVideo', {});
+    }
+    sendPostMessage('setVolume', {volume});
+    sendPostMessage('setPlaybackRate', {playbackRate});
+  }, [playerReady]); // Only run once when playerReady changes
 
   useEffect(() => {
     if (play) {
@@ -186,26 +234,45 @@ const YoutubeIframe = (props, ref) => {
     event => {
       try {
         const message = JSON.parse(event.nativeEvent.data);
+        if (onWebViewLogRef.current && message.eventType !== 'webViewLog') {
+          onWebViewLogRef.current(`[rn-youtube-iframe] Received message: ${JSON.stringify(message)}`);
+        }
+
+        if (onPlayerActionRef.current) {
+          onPlayerActionRef.current({
+            type: message.eventType,
+            data: message.data,
+          });
+        }
 
         switch (message.eventType) {
           case 'fullScreenChange':
-            onFullScreenChange(message.data);
+            onFullScreenChangeRef.current(message.data);
             break;
           case 'playerStateChange':
-            onChangeState(PLAYER_STATES[message.data]);
+            onChangeStateRef.current(PLAYER_STATES[message.data]);
             break;
           case 'playerReady':
-            onReady();
-            setPlayerReady(true);
+            onReadyRef.current();
+            if (!playerReadyRef.current) {
+              playerReadyRef.current = true;
+              setPlayerReady(true);
+            }
             break;
           case 'playerQualityChange':
-            onPlaybackQualityChange(message.data);
+            onPlaybackQualityChangeRef.current(message.data);
             break;
           case 'playerError':
-            onError(PLAYER_ERROR[message.data]);
+            onErrorRef.current(PLAYER_ERROR[message.data]);
             break;
           case 'playbackRateChange':
-            onPlaybackRateChange(message.data);
+            onPlaybackRateChangeRef.current(message.data);
+            break;
+          case 'webViewLog':
+            if (onWebViewLogRef.current) {
+              const logPrefix = message.data?.level ? `[WebView:${message.data.level}] ` : '[WebView] ';
+              onWebViewLogRef.current(logPrefix + (message.data?.message || message.data));
+            }
             break;
           default:
             eventEmitter.current.emit(message.eventType, message.data);
@@ -215,14 +282,7 @@ const YoutubeIframe = (props, ref) => {
         console.warn('[rn-youtube-iframe]', error);
       }
     },
-    [
-      onReady,
-      onError,
-      onChangeState,
-      onFullScreenChange,
-      onPlaybackRateChange,
-      onPlaybackQualityChange,
-    ],
+    [],
   );
 
   const onShouldStartLoadWithRequest = useCallback(
