@@ -303,6 +303,14 @@ export const MAIN_SCRIPT = (
             case 'unMuteVideo':
               player.unMute();
               break;
+
+            case 'setVolume':
+              player.setVolume(parsedData.meta.volume);
+              break;
+
+            case 'setPlaybackRate':
+              player.setPlaybackRate(parsedData.meta.playbackRate);
+              break;
           }
         } catch (error) {
           console.error('[rn-youtube-iframe] [WebView] Error parsing data', event, error);

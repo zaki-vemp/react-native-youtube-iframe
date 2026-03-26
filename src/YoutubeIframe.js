@@ -59,6 +59,28 @@ const YoutubeIframe = (props, ref) => {
   const webViewRef = useRef(null);
   const eventEmitter = useRef(new EventEmitter());
 
+  // Store callback props in refs so sendPostMessage/onWebMessage don't get
+  // new identities when the caller passes inline functions.
+  const onWebViewLogRef = useRef(onWebViewLog);
+  const onPlayerActionRef = useRef(onPlayerAction);
+  const onReadyRef = useRef(onReady);
+  const onErrorRef = useRef(onError);
+  const onChangeStateRef = useRef(onChangeState);
+  const onFullScreenChangeRef = useRef(onFullScreenChange);
+  const onPlaybackRateChangeRef = useRef(onPlaybackRateChange);
+  const onPlaybackQualityChangeRef = useRef(onPlaybackQualityChange);
+
+  useEffect(() => {
+    onWebViewLogRef.current = onWebViewLog;
+    onPlayerActionRef.current = onPlayerAction;
+    onReadyRef.current = onReady;
+    onErrorRef.current = onError;
+    onChangeStateRef.current = onChangeState;
+    onFullScreenChangeRef.current = onFullScreenChange;
+    onPlaybackRateChangeRef.current = onPlaybackRateChange;
+    onPlaybackQualityChangeRef.current = onPlaybackQualityChange;
+  });
+
   const sendPostMessage = useCallback(
     (eventName, meta) => {
       if (!playerReadyRef.current) {
@@ -66,12 +88,12 @@ const YoutubeIframe = (props, ref) => {
       }
 
       const message = JSON.stringify({eventName, meta});
-      if (onWebViewLog) {
-        onWebViewLog(`[rn-youtube-iframe] Sending message: ${message}`);
+      if (onWebViewLogRef.current) {
+        onWebViewLogRef.current(`[rn-youtube-iframe] Sending message: ${message}`);
       }
       webViewRef.current.postMessage(message);
     },
-    [onWebViewLog],
+    [],
   );
 
   useImperativeHandle(
@@ -212,13 +234,12 @@ const YoutubeIframe = (props, ref) => {
     event => {
       try {
         const message = JSON.parse(event.nativeEvent.data);
-        if (onWebViewLog && message.eventType !== 'webViewLog') {
-          onWebViewLog(`[rn-youtube-iframe] Received message: ${JSON.stringify(message)}`);
+        if (onWebViewLogRef.current && message.eventType !== 'webViewLog') {
+          onWebViewLogRef.current(`[rn-youtube-iframe] Received message: ${JSON.stringify(message)}`);
         }
 
-        // Log all events to parent if callback provided
-        if (onPlayerAction) {
-          onPlayerAction({
+        if (onPlayerActionRef.current) {
+          onPlayerActionRef.current({
             type: message.eventType,
             data: message.data,
           });
@@ -226,32 +247,31 @@ const YoutubeIframe = (props, ref) => {
 
         switch (message.eventType) {
           case 'fullScreenChange':
-            onFullScreenChange(message.data);
+            onFullScreenChangeRef.current(message.data);
             break;
           case 'playerStateChange':
-            onChangeState(PLAYER_STATES[message.data]);
+            onChangeStateRef.current(PLAYER_STATES[message.data]);
             break;
           case 'playerReady':
-            onReady();
+            onReadyRef.current();
             if (!playerReadyRef.current) {
               playerReadyRef.current = true;
               setPlayerReady(true);
             }
             break;
           case 'playerQualityChange':
-            onPlaybackQualityChange(message.data);
+            onPlaybackQualityChangeRef.current(message.data);
             break;
           case 'playerError':
-            onError(PLAYER_ERROR[message.data]);
+            onErrorRef.current(PLAYER_ERROR[message.data]);
             break;
           case 'playbackRateChange':
-            onPlaybackRateChange(message.data);
+            onPlaybackRateChangeRef.current(message.data);
             break;
           case 'webViewLog':
-            // WebView console logs - forward to both callbacks
-            if (onWebViewLog) {
+            if (onWebViewLogRef.current) {
               const logPrefix = message.data?.level ? `[WebView:${message.data.level}] ` : '[WebView] ';
-              onWebViewLog(logPrefix + (message.data?.message || message.data));
+              onWebViewLogRef.current(logPrefix + (message.data?.message || message.data));
             }
             break;
           default:
@@ -262,16 +282,7 @@ const YoutubeIframe = (props, ref) => {
         console.warn('[rn-youtube-iframe]', error);
       }
     },
-    [
-      onReady,
-      onError,
-      onChangeState,
-      onFullScreenChange,
-      onPlaybackRateChange,
-      onPlaybackQualityChange,
-      onWebViewLog,
-      onPlayerAction,
-    ],
+    [],
   );
 
   const onShouldStartLoadWithRequest = useCallback(
